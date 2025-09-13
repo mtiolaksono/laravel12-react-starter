@@ -28,18 +28,36 @@ class MediaFolderController extends Controller
             }
         }
 
-        // Ambil file sesuai folder
-        $files = $user->media()
+        $connection = config('database.default');
+
+        if ($connection === 'mysql') {
+            // MySQL
+            $files = $user->media() 
+            ->where('collection_name', 'files') 
+            ->when($folderId, function ($query) use ($folderId) 
+            { 
+                $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(custom_properties, '$.folder_id')) = ?", [(string)$folderId]); }, 
+            function ($query) { 
+                $query->where(function ($q) { 
+                    $q->whereNull('custom_properties->folder_id') 
+                    ->orWhereRaw("JSON_EXTRACT(custom_properties, '$.folder_id') IS NULL"); 
+                }); 
+            }) 
+            ->get();
+        }else if($connection==='pgsql'){
+            // PostgreSQL
+            $files = $user->media()
             ->where('collection_name', 'files')
             ->when($folderId, function ($query) use ($folderId) {
-                $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(custom_properties, '$.folder_id')) = ?", [(string)$folderId]);
+                $query->whereRaw("(custom_properties->>'folder_id') = ?", [(string)$folderId]);
             }, function ($query) {
                 $query->where(function ($q) {
-                    $q->whereNull('custom_properties->folder_id')
-                        ->orWhereRaw("JSON_EXTRACT(custom_properties, '$.folder_id') IS NULL");
+                    $q->whereRaw("(custom_properties->>'folder_id') IS NULL")
+                    ->orWhereRaw("(custom_properties->>'folder_id') = ''");
                 });
             })
             ->get();
+        }
 
         return Inertia::render('files/Index', [
             'folders' => $folders,
@@ -76,11 +94,23 @@ class MediaFolderController extends Controller
         $folder = $medium;
         $user = $folder->user;
 
-        // 🔁 Hapus semua file dalam folder ini
-        $files = $user->media()
-            ->where('collection_name', 'files')
-            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(custom_properties, '$.folder_id')) = ?", [(string)$folder->id])
-            ->get();
+        $connection = config('database.default');
+
+        if ($connection === 'mysql') {
+            // 🔁 Hapus semua file dalam folder ini
+            $files = $user->media()
+                ->where('collection_name', 'files')
+                ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(custom_properties, '$.folder_id')) = ?", [(string)$folder->id])
+                ->get();
+        }else if($connection==='pgsql'){
+            // 🔁 Hapus semua file dalam folder ini (PostgreSQL)
+            $files = $user->media()
+                ->where('collection_name', 'files')
+                ->whereRaw("(custom_properties->>'folder_id') = ?", [(string)$folder->id])
+                ->get();
+        }
+        
+
 
         foreach ($files as $file) {
             $file->delete();

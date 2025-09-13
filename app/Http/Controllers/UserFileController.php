@@ -22,18 +22,37 @@ class UserFileController extends Controller
             return redirect('/files');
         }
 
-        $files = $user
+         $connection = config('database.default');
+
+        if ($connection === 'mysql') {
+            $files = $user
+                ->media()
+                ->where('collection_name', 'files')
+                ->when($folderId, function ($query) use ($folderId) {
+                    $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(custom_properties, '$.folder_id')) = ?", [(string)$folderId]);
+                }, function ($query) {
+                    $query->where(function ($q) {
+                        $q->whereNull('custom_properties->folder_id')
+                            ->orWhereRaw("JSON_EXTRACT(custom_properties, '$.folder_id') IS NULL");
+                    });
+                })
+                ->get();
+        }else if($connection==='pgsql'){
+            $files = $user
             ->media()
             ->where('collection_name', 'files')
             ->when($folderId, function ($query) use ($folderId) {
-                $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(custom_properties, '$.folder_id')) = ?", [(string)$folderId]);
+                // kalau ada folderId → filter pakai JSON operator Postgres
+                $query->whereRaw("(custom_properties->>'folder_id') = ?", [(string)$folderId]);
             }, function ($query) {
+                // kalau ga ada folderId → cari yang folder_id-nya null atau kosong
                 $query->where(function ($q) {
-                    $q->whereNull('custom_properties->folder_id')
-                        ->orWhereRaw("JSON_EXTRACT(custom_properties, '$.folder_id') IS NULL");
+                    $q->whereRaw("(custom_properties->>'folder_id') IS NULL")
+                    ->orWhereRaw("(custom_properties->>'folder_id') = ''");
                 });
             })
             ->get();
+        }
 
         return Inertia::render('files/Index', [
             'folders' => $folders,
