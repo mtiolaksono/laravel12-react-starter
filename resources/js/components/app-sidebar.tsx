@@ -8,6 +8,12 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+
 import { usePage, Link } from '@inertiajs/react';
 import AppLogo from './app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -49,26 +55,31 @@ function RenderMenu({ items, level = 0 }: { items: MenuItem[]; level?: number })
 
         return (
           <SidebarMenuItem key={menu.id}>
-            {hasChildren ? (
-              <>
-                <SidebarMenuButton 
-                  className={cn(
-                    `group flex items-center justify-between rounded-md transition-colors ${indentClass}`,
-                    activeClass,
-                    level === 0 ? 'py-3 px-4 my-1' : 'py-2 px-3'
-                  )}
-                >
-                  <div className="flex items-center">
-                    <Icon className="size-4 mr-3 opacity-80 group-hover:opacity-100" />
-                    <span>{menu.title}</span>
-                  </div>
-                  <ChevronDown className="size-4 opacity-50 group-hover:opacity-70 transition-transform group-data-[state=open]:rotate-180" />
-                </SidebarMenuButton>
-                <SidebarMenu className="ml-2 border-l border-muted pl-2">
-                  <RenderMenu items={children} level={level + 1} />
-                </SidebarMenu>
-              </>
-            ) : (
+{hasChildren ? (
+  <Collapsible>
+    <CollapsibleTrigger asChild>
+      <SidebarMenuButton
+        className={cn(
+          `group flex items-center justify-between rounded-md transition-colors ${indentClass}`,
+          activeClass,
+          level === 0 ? "py-3 px-4 my-1" : "py-2 px-3"
+        )}
+      >
+        <div className="flex items-center">
+          <Icon className="size-4 mr-3 opacity-80 group-hover:opacity-100" />
+          <span>{menu.title}</span>
+        </div>
+        <ChevronDown className="size-4 opacity-50 group-hover:opacity-70 transition-transform group-data-[state=open]:rotate-180" />
+      </SidebarMenuButton>
+    </CollapsibleTrigger>
+
+    <CollapsibleContent>
+      <SidebarMenu className="ml-2 border-l border-muted pl-2">
+        <RenderMenu items={children} level={level + 1} />
+      </SidebarMenu>
+    </CollapsibleContent>
+  </Collapsible>
+) : (
               <SidebarMenuButton 
                 asChild 
                 className={cn(
